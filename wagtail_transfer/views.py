@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.fields import ReadOnlyField
 from wagtail.core.models import Page
 
-from .auth import check_digest, digest_for_source
+from .auth import check_digest, digest_for_source, requests_auth
 from .locators import get_locator_for_model
 from .models import get_model_for_path
 from .operations import ImportPlanner
@@ -194,9 +194,11 @@ def chooser_api_proxy(request, source_name, path):
 
     base_url = source_config['BASE_URL'] + 'api/chooser/{}/'.format(default_chooser_endpoint)
 
-    response = requests.get(f"{base_url}{path}?{request.GET.urlencode()}", headers={
-        'Accept': request.META['HTTP_ACCEPT'],
-    }, timeout=api_proxy_timeout_seconds)
+    response = requests.get(
+        f"{base_url}{path}?{request.GET.urlencode()}",
+        auth=requests_auth(source_name),
+        headers={'Accept': request.META['HTTP_ACCEPT'],},
+        timeout=api_proxy_timeout_seconds)
 
     return HttpResponse(response.content, status=response.status_code)
 
@@ -231,7 +233,9 @@ def import_missing_object_data(source, importer: ImportPlanner):
 
         # request the missing object data and add to the import plan
         response = requests.post(
-            f"{base_url}api/objects/", params={'digest': digest}, data=request_data
+            f"{base_url}api/objects/", params={'digest': digest},
+            auth=requests_auth(source),
+            data=request_data
         )
         importer.add_json(response.content)
     importer.run()
@@ -243,10 +247,14 @@ def import_page(request):
     base_url = settings.WAGTAILTRANSFER_SOURCES[source]['BASE_URL']
     digest = digest_for_source(source, str(request.POST['source_page_id']))
 
-    response = requests.get(f"{base_url}api/pages/{request.POST['source_page_id']}/", params={'digest': digest})
+    response = requests.get(
+        f"{base_url}api/pages/{request.POST['source_page_id']}/",
+        auth=requests_auth(source),
+        params={'digest': digest}
+    )
 
     dest_page_id = request.POST['dest_page_id'] or None
-    importer = ImportPlanner.for_page(source=request.POST['source_page_id'], destination=dest_page_id)
+    importer = ImportPlanner.for_page(source=request.POST['source_page_id'], destination=dest_page_id, source_site=source)
     importer.add_json(response.content)
     importer = import_missing_object_data(source, importer)
 
@@ -267,8 +275,8 @@ def import_model(request):
         source_model_object_id = request.POST.get("source_model_object_id")
         url = f"{url}{source_model_object_id}/"
 
-    response = requests.get(url, params={'digest': digest})
-    importer = ImportPlanner.for_model(model=model)
+    response = requests.get(url, auth=requests_auth(source), params={'digest': digest})
+    importer = ImportPlanner.for_model(model=model, source_site=source)
     importer.add_json(response.content)
     importer = import_missing_object_data(source, importer)
 

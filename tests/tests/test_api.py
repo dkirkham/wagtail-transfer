@@ -637,7 +637,7 @@ class TestChooserProxyApi(TestCase):
 
         response = self.client.get('/admin/wagtail-transfer/api/chooser-proxy/staging/foo?bar=baz', HTTP_ACCEPT='application/json')
 
-        get.assert_called_once_with('https://www.example.com/wagtail-transfer/api/chooser/pages/foo?bar=baz', headers={'Accept': 'application/json'}, timeout=5)
+        get.assert_called_once_with('https://www.example.com/wagtail-transfer/api/chooser/pages/foo?bar=baz', auth=None, headers={'Accept': 'application/json'}, timeout=5)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b'test content')
