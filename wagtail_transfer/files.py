@@ -91,7 +91,6 @@ class FileTransferError(Exception):
     pass
 
 
-import traceback
 
 class File:
     """
