@@ -33,7 +33,4 @@ def digest_for_source(source, message):
     return hmac.new(key, message, hashlib.sha1).hexdigest()
 
 def requests_auth(source):
-    try:
-        return settings.WAGTAILTRANSFER_SOURCES[source]['BASIC_AUTH']
-    except:
-        return None
+    return settings.WAGTAILTRANSFER_SOURCES[source].get('BASIC_AUTH', None)
